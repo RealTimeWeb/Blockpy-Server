@@ -149,9 +149,25 @@ class RemoveCourse(Command):
 class DumpDB(Command):
     option_list = (
         Option('--output', '-o', dest='output', default='backups/db/'),
+        Option('--log_for_course', '-l', dest='log_for_course', default=None),
     )
     
-    def run(self, output, **kwargs):
+    def dump_rows(self, rows, output, table_name):
+        data = [{c.name: str(getattr(row, c.name))
+                 for c in row.__table__.columns}
+                for row in rows]
+        full_path = os.path.join(output, table_name+'.json')
+        with open(full_path, 'w') as output_file:
+            json.dump(data, output_file)
+    
+    def _log_for_course(self, course, output):
+        from models.models import Log
+        logs = Log.get_logs_for_course(course)
+        self.dump_rows(logs, output, 'log')
+    
+    def run(self, output, log_for_course, **kwargs):
+        if log_for_course:
+            return self._log_for_course(log_for_course, output)
         from models.models import (User, db, Course, Submission, Assignment,
                            AssignmentGroup, AssignmentGroupMembership, Settings,
                            Authentication, Log, Role, CourseAssignment)
@@ -168,9 +184,4 @@ class DumpDB(Command):
             'role': Role
         }
         for table_name, table_class in tables.items():
-            data = [{c.name: str(getattr(row, c.name))
-                     for c in row.__table__.columns}
-                    for row in table_class.query.all()]
-            full_path = os.path.join(output, table_name+'.json')
-            with open(full_path, 'w') as output_file:
-                json.dump(data, output_file, indent=2)
+            self.dump_rows(table_class.query.all(), output, table_name)

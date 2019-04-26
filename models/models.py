@@ -475,6 +475,18 @@ class Log(Base):
                           .filter(Log.action != "Success")
                           .group_by(Log.user_id)
                           .all())
+                          
+    @staticmethod
+    def get_logs_for_course(course_id):
+        course = Course.by_id(int(course_id))
+        submissions = course.get_submissions()
+        assignment_ids = {sub.assignment_id for sub in submissions}
+        user_ids = {sub.user_id for sub in submissions}
+        return (Log.query
+                          .filter(Log.assignment_id.in_(assignment_ids))
+                          #.filter(Log.course_id == course_id)
+                          .filter(Log.user_id.in_(user_ids))
+                          .all())
         
 class Settings(Base):
     mode = Column(String(80))
