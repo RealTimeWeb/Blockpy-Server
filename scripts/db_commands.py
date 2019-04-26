@@ -4,6 +4,7 @@ from models.models import db
 from main import app
 import datetime
 import random
+import os
 import json
 from pprint import pprint
 
@@ -144,3 +145,32 @@ class RemoveCourse(Command):
     def run(self, course_id, **kwargs):
         from models.models import Course
         Course.remove(int(course_id), True)
+
+class DumpDB(Command):
+    option_list = (
+        Option('--output', '-o', dest='output', default='backups/db/'),
+    )
+    
+    def run(self, output, **kwargs):
+        from models.models import (User, db, Course, Submission, Assignment,
+                           AssignmentGroup, AssignmentGroupMembership, Settings,
+                           Authentication, Log, Role, CourseAssignment)
+        tables = {
+            'user': User,
+            'course': Course,
+            'submission': Submission,
+            'assignment': Assignment,
+            'group': AssignmentGroup,
+            'membership': AssignmentGroupMembership,
+            'settings': Settings,
+            'authentication': Authentication,
+            'log': Log,
+            'role': Role
+        }
+        for table_name, table_class in tables.items():
+            data = [{c.name: str(getattr(row, c.name))
+                     for c in row.__table__.columns}
+                    for row in table_class.query.all()]
+            full_path = os.path.join(output, table_name+'.json')
+            with open(full_path, 'w') as output_file:
+                json.dump(data, output_file, indent=2)
